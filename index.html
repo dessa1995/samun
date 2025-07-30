@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사회문화 인터랙티브 스토리 게임</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --chalkboard-bg: #395144;
+            --chalk-text-light: #F0EBE3;
+            --chalk-text-dark: #ADADAD;
+            --title-chalk-color: #F4E06D;
+            --correct-color: #54B435;
+            --incorrect-color: #E74C3C;
+            --font-title: 'Do Hyeon', sans-serif;
+            --font-body: 'Noto Sans KR', sans-serif;
+        }
+
+        /* --- 기본 및 레이아웃 --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-body);
+            background-color: #3d3229;
+            background-image: url('https://www.transparenttextures.com/patterns/wood-pattern.png');
+            color: var(--chalk-text-light);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1.5rem;
+            font-size: 1.2rem;
+        }
+        #game-container {
+            width: 100%;
+            max-width: 800px;
+            background-color: var(--chalkboard-bg);
+            border-radius: 10px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5), 0 10px 25px rgba(0,0,0,0.3);
+            border: 12px solid #6b4f3a;
+            border-bottom-width: 20px;
+            padding: 2rem;
+            position: relative;
+        }
+        .screen { display: none; animation: fadeIn 0.7s ease; }
+        .screen.active { display: block; }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* --- 컴포넌트 스타일 (칠판 테마) --- */
+        h1, h2, h3 { font-family: var(--font-title); }
+        .main-title {
+            font-size: 2.8rem; text-align: center;
+            color: var(--title-chalk-color); margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 3px rgba(0,0,0,0.2);
+        }
+        .subtitle {
+            text-align: center; font-size: 1.3rem;
+            color: var(--chalk-text-light); margin-bottom: 2.5rem;
+        }
+        .btn {
+            padding: 0.8rem 1.5rem; font-size: 1.3rem;
+            font-family: var(--font-title); color: var(--chalk-text-light);
+            background-color: transparent; border: 2px solid rgba(240, 235, 227, 0.7);
+            border-radius: 5px; cursor: pointer;
+            transition: all 0.2s ease; display: block;
+            width: 100%; text-align: center;
+        }
+        .btn:hover { background-color: rgba(255,255,255,0.1); border-color: white; }
+        .btn:disabled { color: #888; border-color: #888; cursor: not-allowed; background: transparent; }
+
+        input[type="text"] {
+            width: 100%; padding: 0.8rem 1rem;
+            border: none; border-bottom: 2px dashed rgba(240, 235, 227, 0.5);
+            background: transparent; font-size: 1.2rem;
+            margin-bottom: 1rem; font-family: var(--font-body);
+            color: var(--chalk-text-light);
+        }
+        input:focus { outline: none; border-bottom-color: var(--title-chalk-color); }
+
+        /* --- 화면별 스타일 --- */
+        #name-screen form { max-width: 400px; margin: 0 auto; }
+
+        #grade-selection-container { display: grid; gap: 1.5rem; }
+        .grade-card {
+            background: rgba(0,0,0,0.1); border: 2px dashed rgba(240, 235, 227, 0.4);
+            border-radius: 8px; padding: 1.5rem;
+            transition: all 0.3s ease; position: relative;
+        }
+        .grade-card.locked { background: rgba(0,0,0,0.3); color: #888; }
+        .grade-card h3 { font-size: 1.8rem; color: var(--title-chalk-color); }
+        .grade-card.locked h3 { color: #888; }
+        .grade-card .description { font-size: 1.1rem; color: var(--chalk-text-light); margin: 0.5rem 0; }
+        .grade-card .concepts { font-size: 1rem; color: var(--chalk-text-dark); }
+        .grade-card .play-btn { margin-top: 1rem; }
+        .cleared-badge {
+            position: absolute; top: 15px; right: 15px;
+            background: var(--correct-color); color: white;
+            padding: 0.3rem 0.8rem; border-radius: 20px;
+            font-family: var(--font-title); font-size: 0.9rem;
+        }
+
+        #intro-screen, #final-story-screen { text-align: center; cursor: pointer; }
+        #intro-screen p, #final-story-screen p { font-size: 1.4rem; line-height: 1.8; margin-bottom: 2rem; }
+        
+        #game-screen-header { text-align: center; margin-bottom: 1.5rem; border-bottom: 3px double rgba(240, 235, 227, 0.3); padding-bottom: 1rem; }
+        #stage-title { font-size: 2rem; color: var(--title-chalk-color); }
+        #episode-title { font-size: 1.3rem; color: var(--chalk-text-light); margin-top: 0.5rem; }
+        #game-content { display: flex; gap: 1.5rem; align-items: flex-start; margin-top: 1rem; }
+        #icon-container { flex-shrink: 0; width: 100px; height: 100px; display: flex; justify-content: center; align-items: center; }
+        #icon-container svg { width: 60px; height: 60px; fill: var(--chalk-text-light); }
+        #text-content { flex-grow: 1; cursor: pointer; }
+        #situation-text, #question-text { margin-bottom: 1.5rem; line-height: 1.8; min-height: 50px; }
+        #question-text { font-weight: 700; font-family: var(--font-title); color: var(--title-chalk-color); }
+        .choice-button {
+            width: 100%; padding: 1rem; font-size: 1.2rem;
+            text-align: left; background-color: transparent;
+            border: 1px solid rgba(240, 235, 227, 0.7); border-radius: 4px;
+            cursor: pointer; transition: all 0.2s ease;
+            color: var(--chalk-text-light);
+        }
+        .choice-button:hover { background-color: rgba(255,255,255,0.1); border-color: white; }
+        
+        /* 피드백 모달 */
+        #feedback-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7); display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000; animation: fadeIn 0.3s;
+        }
+        #feedback-modal.active { display: flex; }
+        .feedback-content {
+            background: var(--chalkboard-bg); padding: 2.5rem; border-radius: 12px;
+            text-align: center; max-width: 90%; width: 500px;
+            border: 8px solid #6b4f3a;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            animation: zoomIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .feedback-content h2 { font-size: 3rem; margin-bottom: 1rem; }
+        .feedback-content p { font-size: 1.3rem; line-height: 1.7; margin-bottom: 2rem; }
+        .feedback-content.correct h2 { color: var(--correct-color); }
+        .feedback-content.incorrect h2 { color: var(--incorrect-color); }
+        .feedback-content .btn:hover { color: white; }
+        .feedback-content .btn.correct:hover { background-color: var(--correct-color); }
+        .feedback-content .btn.incorrect:hover { background-color: var(--incorrect-color); }
+        
+        /* 축하 효과 (Confetti) */
+        #confetti-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
+        .confetti {
+            position: absolute; width: 10px; height: 20px;
+            background-color: #f00; opacity: 0.9;
+            animation: fall 5s linear forwards;
+        }
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            body { font-size: 1rem; padding: 0.5rem; }
+            #game-container { padding: 1.5rem; border-width: 8px; border-bottom-width: 15px; }
+            .main-title { font-size: 2rem; }
+            .subtitle, .btn, input[type="text"], .choice-button { font-size: 1rem; }
+            .grade-card h3 { font-size: 1.5rem; }
+            .grade-card .description, .grade-card .concepts { font-size: 0.9rem; }
+            #intro-screen p, #final-story-screen p { font-size: 1.1rem; }
+            #game-content { flex-direction: column; align-items: center; text-align: center; }
+            #icon-container { margin-bottom: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <!-- 이름 입력 -->
+        <div id="name-screen" class="screen active">
+            <h1 class="main-title">사회문화 스토리 게임</h1>
+            <p class="subtitle">칠판에 쓰여진 이야기를 따라가며<br>사회문화를 정복해보자!</p>
+            <form id="name-form">
+                <input type="text" id="player-name-input" placeholder="주인공의 이름을 입력하세요" autocomplete="off">
+                <button type="submit" class="btn">입학하기</button>
+            </form>
+        </div>
+
+        <!-- 메인 메뉴 -->
+        <div id="main-menu-screen" class="screen">
+            <h1 class="main-title">나의 학교 생활</h1>
+            <p id="player-greeting" class="subtitle"></p>
+            <div id="grade-selection-container"></div>
+        </div>
+
+        <!-- 인트로 -->
+        <div id="intro-screen" class="screen">
+             <h2 id="intro-title" class="main-title"></h2>
+             <p id="intro-text"></p>
+             <button id="start-episode-btn" class="btn">이야기 시작</button>
+        </div>
+
+        <!-- 게임 진행 -->
+        <div id="game-screen" class="screen">
+            <button id="back-to-menu-btn" style="position: absolute; top: 1rem; left: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #aaa;">&#8634;</button>
+            <div id="game-screen-header">
+                <h2 id="stage-title"></h2>
+                <p id="episode-title"></p>
+            </div>
+            <div id="game-content">
+                <div id="icon-container"></div>
+                <div id="text-content">
+                    <p id="situation-text"></p>
+                    <p id="question-text"></p>
+                    <div id="choices-container"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 최종 클리어 -->
+        <div id="final-story-screen" class="screen">
+             <h1 class="main-title" style="color: var(--correct-color);">최종 합격!</h1>
+             <p id="final-story-text"></p>
+             <button id="play-again-button" class="btn">새로운 이야기 시작</button>
+        </div>
+    </div>
+
+    <!-- 피드백 모달 -->
+    <div id="feedback-modal">
+        <div class="feedback-content">
+            <h2 id="feedback-title"></h2>
+            <p id="feedback-text"></p>
+            <button id="feedback-btn" class="btn"></button>
+        </div>
+    </div>
+
+    <!-- 축하 효과 컨테이너 -->
+    <div id="confetti-container"></div>
+
+    <audio id="bgm" src="https://github.com/dessa1995/samun/raw/refs/heads/main/samun.mp3" loop></audio>
+
+    <script>
+        // --- 게임 데이터 (동일) ---
+        const gameData = [
+            { grade: 1, stageTitle: "학교 적응과 인기 얻기", description: "새로운 학교, 새로운 친구들! 주인공이 되어 친구들과 잘 어울리고 인기를 얻어보자.", concepts: "지위와 역할, 역할 갈등, 사회 집단, 내집단과 외집단", introTitle: "1학년: 새로운 시작", introText: "낯선 복도, 새로운 얼굴들... 오늘부터 이 학교 학생이다. 잘 적응해서 즐거운 학교 생활을 만들고 싶어. 우선 친구부터 사귀는 게 목표야!", cleared: false, episodes: [ { title: "Episode 1 – 반장 추천, 어쩌지?", situation: "전학 온 첫날, 조별 활동을 마친 도중 친구들이 주인공을 반장으로 추천한다. 담임 선생님도 추천에 동의하며 출마 의사를 묻는다.", question: "이 상황에서 주인공의 사회적 지위와 그에 따른 역할 행동으로 적절한 것은?", icon: "group", choices: [{ text: "지위: 친구 / 역할: 잡담 나누기", isCorrect: false, feedback: "친구로서의 역할도 중요하지만, 지금은 '반장 후보'라는 새로운 지위가 부여된 상황이야. 그에 맞는 행동이 필요해." }, { text: "지위: 반장 후보자 / 역할: 조율과 질서 유지", isCorrect: true, feedback: "정답! '반장 후보'라는 지위에 걸맞은 역할 행동을 보여주며 친구들에게 신뢰를 얻었어." }, { text: "지위: 외부인 / 역할: 아무것도 하지 않기", isCorrect: false, feedback: "소극적인 태도는 친구들과 거리감을 만들 수 있어. 새로운 집단에 적응하려면 적극적인 자세가 중요해." }] }, { title: "Episode 2 – 운동부도 하고 싶고, 학급 일도 하고 싶고…", situation: "반장 역할과 축구부 훈련 시간이 겹쳐 고민에 빠진 주인공.", question: "이 상황은 어떤 사회문화 개념으로 설명할 수 있는가?", icon: "conflict", choices: [{ text: "역할 갈등", isCorrect: true, feedback: "정답! '반장'과 '축구부원'이라는 두 가지 지위에서 요구되는 역할(회의 참석, 훈련 참가)이 충돌하는 '역할 갈등' 상황이야." }, { text: "문화 지체", isCorrect: false, feedback: "'문화 지체'는 물질문화의 발전 속도를 비물질문화가 따라가지 못하는 현상을 말해. 지금 상황과는 관련이 없어." }, { text: "공식 집단", isCorrect: false, feedback: "학교나 축구부는 공식 집단이 맞지만, 이 개념이 주인공의 '고민' 자체를 설명해주진 않아." }] }, { title: "Episode 3 – 재훈이 왜 저렇게 됐을까?", situation: "착하던 친구 재훈이 불량 친구들과 어울리며 일탈 행동을 하게 된다. 제3자인 주인공은 그 원인을 사회문화적으로 분석해 본다.", question: "재훈의 일탈을 설명할 수 있는 가장 적절한 이론은?", icon: "question", choices: [{ text: "차별적 교제 이론", isCorrect: true, feedback: "정답! '차별적 교제 이론'에 따르면, 개인은 자신이 어울리는 집단으로부터 가치관이나 행동을 학습해. 재훈이도 친구들로부터 일탈 행동을 배운 거지." }, { text: "낙인 이론", isCorrect: false, feedback: "'낙인 이론'은 다른 사람들이 누군가를 일탈자로 규정할 때 그 사람이 실제로 일탈자가 되어가는 과정을 설명해. 아직 재훈이가 낙인찍힌 상황은 아니야." }, { text: "뒤르켐의 아노미 이론", isCorrect: false, feedback: "'아노미 이론'은 사회의 규범이 약해져 혼란스러운 상태를 말해. 재훈이 개인의 변화를 설명하기엔 너무 거시적인 이론이야." }] }, { title: "Episode 4 – 공식이냐 비공식이냐, 그것이 문제로다", situation: "주인공은 친구들과의 ‘급식 모임’에 자주 참여한다. 자발적인 친목 위주의 모임이다.", question: "이 모임은 어떤 사회 집단으로 분류되는가?", icon: "group", choices: [{ text: "공식 집단", isCorrect: false, feedback: "공식 집단은 학교처럼 명확한 목표와 절차, 규칙을 가져. 급식 모임은 그에 해당하지 않아." }, { text: "비공식 집단", isCorrect: true, feedback: "정답! 급식 모임처럼 공식 집단 내에서 구성원들의 자발적인 의사와 친밀한 관계를 바탕으로 형성된 집단을 '비공식 집단'이라고 해." }, { text: "준거 집단", isCorrect: false, feedback: "'준거 집단'은 개인이 자신의 신념이나 태도를 결정할 때 기준으로 삼는 집단이야. 모임의 성격을 분류하는 개념은 아니지." }] }, { title: "Episode 5 – 나를 바꾼 건 누구였을까?", situation: "학교생활을 돌아보며 주인공은 자신에게 가장 큰 영향을 준 사회 집단을 회상한다. “정서적으로 가깝고, 지금 내가 소속되어 있고, 나를 변화시킨 집단. 바로 1차 집단이자 내집단이었어.”", question: "다음 중 주인공이 말하는 사회 집단으로 가장 적절한 것은?", icon: "student", choices: [{ text: "현재 학교의 또래 친구들", isCorrect: true, feedback: "정답! 또래 친구들은 매일 만나며 정서적 유대를 나누는 '1차 집단'이자, 주인공이 소속감을 느끼는 '내집단'이야." }, { text: "학원 심화반", isCorrect: false, feedback: "학원은 지식 습득이라는 특정 목적을 위해 모인 '2차 집단'의 성격이 강해." }, { text: "이전 학교의 또래 친구들", isCorrect: false, feedback: "이전 학교 친구들은 현재 주인공이 소속된 집단이 아니므로 '외집단'으로 볼 수 있어." }] }] },
+            { grade: 2, stageTitle: "전교 회장 선거에 출마하고 당선되기", description: "학교를 바꾸고 싶다는 열정! 전교 회장 선거에 도전하여 학생들의 마음을 얻어보자.", concepts: "사회문화 현상을 보는 관점, 문화 자본, 계층, 사회 변동", introTitle: "2학년: 더 큰 무대로", introText: "평범한 학교 생활에 만족할 수 없어! 내가 직접 학교를 더 좋은 곳으로 만들어 보고 싶다. 그래, 결심했어! 전교 회장 선거에 나가는 거야!", cleared: false, episodes: [ { title: "Episode 1 – 모두를 위한 공약이란?", situation: "전교 회장 후보로 출마한 주인공. 다양한 학생 요구를 반영한 공약을 세우려면 자신이 어떻게 사회를 바라보는지 먼저 명확히 해야 한다고 생각한다.", question: "다음 중 사회를 안정과 통합의 관점에서 바라보는 이론은?", icon: "lightbulb", choices: [{ text: "상징적 상호작용론", isCorrect: false, feedback: "상징적 상호작용론은 개인 간의 상호작용과 상징의 의미 해석에 초점을 맞추는 미시적 관점이야." }, { text: "갈등론", isCorrect: false, feedback: "갈등론은 사회를 지배 집단과 피지배 집단 간의 갈등과 대립의 장으로 봐." }, { text: "기능론", isCorrect: true, feedback: "정답! 기능론은 사회의 각 부분들이 제 기능을 수행하며 전체적인 안정과 조화를 유지한다고 보는 관점이야." }] }, { title: "Episode 2 – 말발이 다르다?", situation: "회장 후보 토론회에서 다른 후보의 뛰어난 표현력과 말솜씨에 위축된 주인공. 친구는 “그 친구는 부모님이 교수고 독서도 많이 했대”라고 한다.", question: "다른 후보의 뛰어난 언어 능력을 사회문화적으로 설명할 수 있는 개념은?", icon: "conflict", choices: [{ text: "문화 자본", isCorrect: true, feedback: "정답! '문화 자본'은 개인이 사회화 과정에서 습득한 문화적 취향, 지식, 언어 사용 능력 등을 말해. 이것이 사회적 지위에 영향을 줄 수 있지." }, { text: "사회 이동", isCorrect: false, feedback: "'사회 이동'은 개인의 사회적 지위가 바뀌는 현상 자체를 의미해. 능력의 원인을 설명하진 않아." }, { text: "일탈 이론", isCorrect: false, feedback: "일탈은 사회 규범에서 벗어나는 행동을 말하는 것으로, 이 상황과는 거리가 멀어." }] }, { title: "Episode 3 – 너 그쪽 편이지?", situation: "선거를 앞두고 인문계와 자연계 학생들 간 지지 갈등이 심해진다. 주인공은 중립을 유지하려 하지만, 한 쪽은 “너 왜 우리 편 안 들어?”라며 반발한다.", question: "이 상황을 가장 잘 설명하는 사회문화 개념은?", icon: "group", choices: [{ text: "내집단과 외집단", isCorrect: true, feedback: "정답! 소속감을 느끼는 '내집단'에 강한 유대감을, 그렇지 않은 '외집단'에 배타적인 태도를 보이는 현상으로 이 갈등을 설명할 수 있어." }, { text: "역할 갈등", isCorrect: false, feedback: "역할 갈등은 한 개인이 가진 여러 지위 간의 역할이 충돌하는 상황이야. 집단 간의 대립과는 달라." }, { text: "상징적 상호작용론", isCorrect: false, feedback: "이 개념은 개인 간의 상호작용을 분석하는 미시적 관점으로, 집단 간의 갈등을 설명하기엔 적합하지 않아." }] }, { title: "Episode 4 – 운이야, 구조야?", situation: "주인공은 학교 안에서도 학급별 자원 분배와 기회의 차이를 체감하고 충격을 받는다. 친구는 “그 반은 원래 못하잖아”라며 개인 탓으로 돌린다.", question: "이 상황을 사회 구조적 문제로 파악하는 관점과 가장 가까운 설명은?", icon: "question", choices: [{ text: "개인의 노력 부족이 계층 하강의 원인이다.", isCorrect: false, feedback: "이것은 모든 책임을 개인에게 돌리는 설명이야. 사회 구조의 영향력을 간과하고 있어." }, { text: "사회 구조적 불평등이 기회의 차이를 만든다.", isCorrect: true, feedback: "정답! 사회 구조 자체가 불평등하여 개인의 노력만으로는 극복하기 어려운 기회의 차이가 발생한다고 보는 관점이야." }, { text: "사회 규범을 거부한 일탈 행동의 결과이다.", isCorrect: false, feedback: "일탈 개념은 이 상황에 맞지 않아. 지금은 자원과 기회의 분배에 대한 문제야." }] }, { "title": "Episode 5 – 학교가 왜 이렇게 변했지?", "situation": "도윤은 1학년 때와 비교해 학교 분위기가 확 달라진 걸 느낀다. AI 수업이 생기고, 기존의 칠판이 사라지고 전자 칠판이 생겼다. 선생님들도 “이제는 단순 암기보다 문제 해결력이 중요하다”고 강조한다. 도윤은 이러한 변화가 단순한 유행이 아니라 사회 구조의 변화 때문임을 느끼기 시작한다.", "question": "학교 현장이 변화한 배경을 사회 변동의 요인으로 설명할 때 가장 적절한 것은?", "icon": "lightbulb", "choices": [ { "text": "인공지능과 디지털 기술의 발달로 인한 교육 환경 변화", "isCorrect": true, "feedback": "정답! 인공지능, 빅데이터 등 새로운 기술의 발전은 교육 방식과 학습 환경을 구조적으로 바꾸고 있어. 도윤은 이를 통해 사회 변동의 핵심 요인을 파악하게 됐어." }, { "text": "학교 운영 주체의 교체로 인한 변화", "isCorrect": false, "feedback": "정책 변화도 영향이 있을 수 있지만, 이건 구체적인 기술 발전이 직접적 원인이야." }, { "text": "학습자의 태도 변화에 따른 조정", "isCorrect": false, "feedback": "문화 변동은 가치관의 변화이지, 도구와 방식의 변화는 설명이 부족해." } ] }
+            { grade: 3, stageTitle: "좋은 대학 진학하기", description: "치열한 입시 경쟁 속에서 사회를 보는 넓은 시야를 증명하고, 꿈에 그리던 대학에 합격하자!", concepts: "사회화, 문화 이해 태도, 세계화, 정보 사회, 다문화 사회", introTitle: "3학년: 미래를 향한 마지막 관문", introText: "어느덧 고등학교 마지막 학년. 책상 위엔 문제집이 쌓여있고, 창밖을 볼 여유도 없네. 하지만 대학은 성적만으로 가는 게 아니라고들 해. 내가 어떤 사람인지, 세상을 어떻게 바라보는지 보여줘야 할 때야.", cleared: false, episodes: [ { title: "Episode 1 – 무엇이 나를 결정짓는가?", situation: "주인공은 수시 자소서를 쓰며 “내가 왜 이 진로를 선택했지?”란 고민에 빠진다. 부모의 기대, 사회의 시선, 자신의 흥미 사이에서 갈등한다.", question: "개인의 진로 선택과 자아 정체성 형성에 영향을 주는 사회문화적 과정을 무엇이라고 하는가?", icon: "student", choices: [{ text: "사회화", isCorrect: true, feedback: "정답! '사회화'는 개인이 사회 구성원으로 살아가는 데 필요한 지식, 가치, 태도 등을 배워 내면화하는 과정이야. 진로 선택 역시 그 과정의 일부지." }, { text: "사회 이동", isCorrect: false, feedback: "사회 이동은 사회적 지위가 변하는 현상을 말해. 진로 선택의 '과정'을 설명하는 개념은 아니야." }, { text: "일탈 행동", isCorrect: false, feedback: "일탈은 사회 규범에서 벗어나는 행동으로, 정상적인 진로 고민과는 관련이 없어." }] }, { title: "Episode 2 – 그건 이상한 거 아냐?", situation: "다문화 학생 사라가 기도하는 모습을 보고 친구들이 이상하다고 반응한다. 주인공은 이를 어떻게 이해해야 할지 고민한다.", question: "이 상황에서 주인공이 취해야 할 가장 바람직한 문화적 태도는?", icon: "world", choices: [{ text: "자문화 중심주의", isCorrect: false, feedback: "자문화 중심주의는 자기 문화만 우월하다고 믿고 다른 문화를 업신여기는 태도야. 문화 갈등을 유발할 수 있어." }, { text: "문화 사대주의", isCorrect: false, feedback: "문화 사대주의는 다른 사회의 문화를 무조건적으로 동경하고 자기 문화를 낮게 평가하는 태도야. 문화적 주체성을 잃을 수 있지." }, { text: "문화 상대주의", isCorrect: true, feedback: "정답! '문화 상대주의'는 각 문화의 고유한 가치를 인정하고, 그 사회의 맥락 속에서 문화를 이해하려는 태도야." }] }, { title: "Episode 3 – 우리 동네 미세먼지가 왜?", situation: "주인공은 지역 환경 문제를 조사하다 외국 산업의 영향을 발견하고, 지역 일자리 감소도 글로벌 기업의 투자 변화 때문임을 알게 된다.", question: "지역의 문제와 세계적 현상이 긴밀히 연결되는 현상을 설명하는 개념은?", icon: "world", choices: [{ text: "세계화", isCorrect: true, feedback: "정답! '세계화'는 교통·통신의 발달로 전 지구가 하나의 생활권으로 통합되면서, 정치·경제·사회·문화적 상호 의존성이 높아지는 현상을 말해." }, { text: "사회 통합", isCorrect: false, feedback: "사회 통합은 사회 구성원들을 하나의 공동체로 묶는 과정을 의미해. 국경을 넘는 연관성을 설명하는 개념은 아니야." }, { text: "문화 변동", isCorrect: false, feedback: "문화 변동은 발명, 발견, 전파 등의 요인으로 한 사회의 문화 요소가 변화하는 현상을 말해." }] }, { title: "Episode 4 – 사실일까, 프레임일까?", situation: "입시 커뮤니티의 허위 정보에 휘둘릴 뻔한 주인공. 정보가 현실을 좌우할 수 있다는 사실에 충격을 받는다.", question: "이 상황을 사회문화적으로 설명할 수 있는 가장 적절한 개념은?", icon: "question", choices: [{ text: "정보 사회", isCorrect: true, feedback: "정답! '정보 사회'는 정보가 핵심 자원이 되는 사회로, 정보의 생산, 유통, 소비가 사회를 움직이는 중심 활동이 돼. 정보의 진위를 가리는 능력이 매우 중요해져." }, { text: "산업 사회", isCorrect: false, feedback: "산업 사회는 공업 생산이 중심이 되는 사회를 말해. 정보의 중요성이 지금처럼 크지는 않았어." }, { text: "문화 지체", isCorrect: false, feedback: "문화 지체는 물질문화의 발전 속도를 비물질문화가 따라가지 못하는 현상이야. 정보의 영향력 자체를 설명하는 개념은 아니야." }] }, { title: "Episode 5 – 함께, 어떻게 살아가야 할까?", situation: "대학 면접에서 다문화 사회에 대한 태도를 묻는 질문을 받은 주인공. 주인공은 샐러드 볼 이론과 용광로 이론을 떠올리며 답을 고민한다.", question: "다양한 문화가 고유성을 유지하며 조화롭게 공존하는 다문화 정책 모델은?", icon: "world", choices: [{ text: "샐러드 볼 이론", isCorrect: true, feedback: "정답! '샐러드 볼 이론'은 샐러드 속 다양한 채소들이 각자의 맛과 모양을 유지하며 어우러지는 것처럼, 여러 문화가 정체성을 지키며 조화를 이루는 사회를 지향해." }, { text: "용광로 이론", isCorrect: false, feedback: "용광로 이론은 다양한 문화를 녹여 하나의 새로운 주류 문화를 만드는 동화주의 모델이야." }, { text: "문화 동화 정책", isCorrect: false, feedback: "문화 동화는 소수 문화를 주류 문화에 흡수시키는 정책으로, 샐러드 볼 이론과는 반대되는 개념이야." }] }] }
+        ];
+        
+        // --- 아이콘 SVG 데이터 (동일) ---
+        const icons = { student: `<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`, group: `<svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>`, conflict: `<svg viewBox="0 0 24 24"><path d="M22.54 15.85c.33-.44.23-1.07-.22-1.4l-4.42-3.28 2.5-4.7c.25-.48.03-1.08-.45-1.32l-1.08-.54c-.48-.24-1.08-.02-1.32.45l-2.5 4.7-3.28-4.42c-.33-.45-.96-.55-1.4-.22l-1.65 1.23c-.44.33-.55.96-.22 1.4l3.28 4.42-4.7 2.5c-.48.25-1.08.03-1.32-.45l-.54-1.08c-.24-.48-.84-.7-1.32-.45L1.46 9.45c-.48.24-.7.84-.45 1.32l2.5 4.7-4.42 3.28c-.45.33-.55.96-.22 1.4l1.23 1.65c.33.44.96.55 1.4.22l4.42-3.28 2.5 4.7c.25.48.84.7 1.32.45l1.08.54c.48.24 1.08.02 1.32-.45l2.5-4.7 3.28 4.42c.33.45.96.55 1.4.22l1.65-1.23c.44-.33.55-.96.22-1.4l-3.28-4.42 4.7-2.5z"/></svg>`, question: `<svg viewBox="0 0 24 24"><path d="M11.07 12.85c.77-1.39 2.25-2.21 3.11-3.44.91-1.29.4-3.7-2.18-3.7-1.69 0-2.52 1.28-2.87 2.34L6.54 6.96C7.25 4.83 9.18 3 12.01 3c3.31 0 5.99 2.69 5.99 6 0 2.42-1.72 4.44-4.19 5.23-.27.09-.42.34-.42.61v1.16h-2.89v-1.24c0-.23.09-.46.25-.61zM11 18h2v-2h-2v2z"/></svg>`, lightbulb: `<svg viewBox="0 0 24 24"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>`, world: `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1h-2v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>`};
+
+        // --- 게임 상태 및 DOM 참조 ---
+        let playerName = "";
+        let currentGradeIndex = 0;
+        let currentEpisodeIndex = 0;
+        let typeWriterTimeout;
+
+        const dom = {
+            nameForm: document.getElementById('name-form'),
+            nameInput: document.getElementById('player-name-input'),
+            playerGreeting: document.getElementById('player-greeting'),
+            gradeSelectionContainer: document.getElementById('grade-selection-container'),
+            introScreen: document.getElementById('intro-screen'),
+            introTitle: document.getElementById('intro-title'),
+            introText: document.getElementById('intro-text'),
+            startEpisodeBtn: document.getElementById('start-episode-btn'),
+            backToMenuBtn: document.getElementById('back-to-menu-btn'),
+            stageTitle: document.getElementById('stage-title'),
+            episodeTitle: document.getElementById('episode-title'),
+            iconContainer: document.getElementById('icon-container'),
+            textContent: document.getElementById('text-content'),
+            situationText: document.getElementById('situation-text'),
+            questionText: document.getElementById('question-text'),
+            choicesContainer: document.getElementById('choices-container'),
+            finalStoryScreen: document.getElementById('final-story-screen'),
+            finalStoryText: document.getElementById('final-story-text'),
+            playAgainButton: document.getElementById('play-again-button'),
+            feedbackModal: document.getElementById('feedback-modal'),
+            feedbackContent: document.querySelector('.feedback-content'),
+            feedbackTitle: document.getElementById('feedback-title'),
+            feedbackText: document.getElementById('feedback-text'),
+            feedbackBtn: document.getElementById('feedback-btn'),
+            confettiContainer: document.getElementById('confetti-container'),
+            bgm: document.getElementById('bgm'),
+        };
+
+        // --- 함수 ---
+        const showScreen = (screenId) => {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        };
+
+        const typeWriter = (element, text, skippableContainer, onComplete) => {
+            clearTimeout(typeWriterTimeout);
+            element.innerHTML = "";
+            let i = 0;
+            const fullText = text.replace(/주인공/g, playerName);
+
+            const type = () => {
+                if (i < fullText.length) {
+                    element.innerHTML += fullText.charAt(i);
+                    i++;
+                    typeWriterTimeout = setTimeout(type, 50);
+                } else {
+                    if(skippableContainer) skippableContainer.onclick = null;
+                    if (onComplete) onComplete();
+                }
+            };
+            
+            if(skippableContainer) {
+                skippableContainer.onclick = () => {
+                    clearTimeout(typeWriterTimeout);
+                    element.innerHTML = fullText;
+                    skippableContainer.onclick = null;
+                    if (onComplete) {
+                        onComplete();
+                    }
+                };
+            }
+            type();
+        };
+
+        const launchConfetti = () => {
+            const colors = ['#ffd700', '#ff69b4', '#00ced1', '#7cfc00', '#9370db'];
+            for (let i = 0; i < 100; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.top = -20 + 'px';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+                confetti.style.animationDuration = Math.random() * 3 + 2 + 's';
+                dom.confettiContainer.appendChild(confetti);
+            }
+            setTimeout(() => dom.confettiContainer.innerHTML = '', 5000);
+        };
+
+        const renderMainMenu = () => {
+            dom.playerGreeting.textContent = `${playerName}의 학교 생활 기록부`;
+            dom.gradeSelectionContainer.innerHTML = '';
+            gameData.forEach((grade, index) => {
+                const isLocked = index > 0 && !gameData[index - 1].cleared;
+                const card = document.createElement('div');
+                card.className = `grade-card ${isLocked ? 'locked' : ''}`;
+                card.innerHTML = `
+                    ${grade.cleared ? '<div class="cleared-badge">CLEAR!</div>' : ''}
+                    <h3>${grade.grade}학년: ${grade.stageTitle}</h3>
+                    <p class="description">${grade.description}</p>
+                    <p class="concepts">주요 개념: ${grade.concepts}</p>
+                    <button class="btn play-btn" data-grade="${index}" ${isLocked ? 'disabled' : ''}>
+                        ${isLocked ? '잠김' : (grade.cleared ? '다시하기' : '플레이')}
+                    </button>
+                `;
+                dom.gradeSelectionContainer.appendChild(card);
+            });
+            showScreen('main-menu-screen');
+        };
+
+        const startGrade = (gradeIdx) => {
+            currentGradeIndex = gradeIdx;
+            currentEpisodeIndex = 0;
+            const grade = gameData[gradeIdx];
+            dom.introTitle.textContent = grade.introTitle;
+            typeWriter(dom.introText, grade.introText, dom.introScreen, () => {});
+            showScreen('intro-screen');
+        };
+
+        const loadEpisode = () => {
+            const grade = gameData[currentGradeIndex];
+            const episode = grade.episodes[currentEpisodeIndex];
+            
+            dom.stageTitle.textContent = `${grade.grade}학년 - ${grade.stageTitle}`;
+            dom.episodeTitle.textContent = episode.title;
+            dom.iconContainer.innerHTML = icons[episode.icon] || icons.question;
+            dom.choicesContainer.innerHTML = '';
+
+            typeWriter(dom.situationText, episode.situation, dom.textContent, () => {
+                typeWriter(dom.questionText, episode.question, dom.textContent, () => {
+                    dom.textContent.onclick = null;
+                    episode.choices.forEach((choice, index) => {
+                        const button = document.createElement('button');
+                        button.className = 'choice-button';
+                        button.innerHTML = choice.text;
+                        button.dataset.index = index;
+                        dom.choicesContainer.appendChild(button);
+                    });
+                });
+            });
+            showScreen('game-screen');
+        };
+        
+        const showFeedback = (isCorrect, feedback) => {
+            dom.feedbackModal.classList.add('active');
+            dom.feedbackContent.className = `feedback-content ${isCorrect ? 'correct' : 'incorrect'}`;
+            dom.feedbackTitle.textContent = isCorrect ? '정답 ✅' : '오답 ❌';
+            dom.feedbackText.textContent = feedback;
+            dom.feedbackBtn.className = `btn`;
+            dom.feedbackBtn.textContent = isCorrect ? '다음으로' : '다시 풀어보기';
+            
+            dom.feedbackBtn.onclick = () => {
+                dom.feedbackModal.classList.remove('active');
+                if (isCorrect) {
+                    currentEpisodeIndex++;
+                    const grade = gameData[currentGradeIndex];
+                    if (currentEpisodeIndex >= grade.episodes.length) {
+                        grade.cleared = true;
+                        launchConfetti();
+                        
+                        if (gameData.every(g => g.cleared)) {
+                            typeWriter(dom.finalStoryText, `3년간의 노력 끝에, ${playerName}은(는) 사회를 보는 깊고 넓은 눈을 갖게 되었다. 그 결과, 꿈에 그리던 한국대학교에 당당히 합격했다! 축하합니다!`, dom.finalStoryScreen, () => {});
+                            showScreen('final-story-screen');
+                        } else {
+                            setTimeout(() => {
+                                alert(`축하합니다! ${grade.grade}학년 목표 '${grade.stageTitle}'를 달성했습니다!`);
+                                renderMainMenu();
+                            }, 500);
+                        }
+                    } else {
+                        loadEpisode();
+                    }
+                }
+            };
+        };
+
+        // --- 이벤트 리스너 설정 ---
+        dom.nameForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = dom.nameInput.value.trim();
+            playerName = name || "도윤";
+            dom.bgm.play().catch(() => {});
+            renderMainMenu();
+        });
+
+        dom.gradeSelectionContainer.addEventListener('click', (e) => {
+            if (e.target.classList.contains('play-btn') && !e.target.disabled) {
+                const gradeIdx = parseInt(e.target.dataset.grade);
+                startGrade(gradeIdx);
+            }
+        });
+
+        dom.startEpisodeBtn.addEventListener('click', loadEpisode);
+        
+        dom.choicesContainer.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('choice-button')) return;
+            const choiceIndex = parseInt(e.target.dataset.index);
+            const choice = gameData[currentGradeIndex].episodes[currentEpisodeIndex].choices[choiceIndex];
+            showFeedback(choice.isCorrect, choice.feedback);
+        });
+
+        dom.backToMenuBtn.addEventListener('click', renderMainMenu);
+        
+        dom.playAgainButton.addEventListener('click', () => {
+            gameData.forEach(g => g.cleared = false);
+            renderMainMenu();
+        });
+
+    </script>
+</body>
+</html>
